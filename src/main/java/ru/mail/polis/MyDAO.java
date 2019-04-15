@@ -9,12 +9,12 @@ import java.util.TreeMap;
 import org.jetbrains.annotations.NotNull;
 
 public class MyDAO implements DAO {
-    
+
     private final NavigableMap<ByteBuffer, Record> dataBase = new TreeMap<>();
 
     @NotNull
     @Override
-    public Iterator<Record> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
         return dataBase.tailMap(from).values().iterator();
     }
 
@@ -28,17 +28,6 @@ public class MyDAO implements DAO {
         dataBase.remove(key);
     }
 
-    /**
-     * Closes this stream and releases any system resources associated
-     * with it. If the stream is already closed then invoking this
-     * method has no effect.
-     * <p> As noted in {@link AutoCloseable#close()}, cases where the
-     * close may fail require careful attention. It is strongly advised
-     * to relinquish the underlying resources and to internally
-     * <em>mark</em> the {@code Closeable} as closed, prior to throwing
-     * the {@code IOException}.
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     public void close() throws IOException {
         //nothing
