@@ -9,7 +9,7 @@ import java.util.TreeMap;
 import org.jetbrains.annotations.NotNull;
 
 public class MyDAO implements DAO {
-    private final NavigableMap<ByteBuffer, Record> dataBase = new TreeMap<>()
+    private final NavigableMap<ByteBuffer, Record> dataBase = new TreeMap<>();
 
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
