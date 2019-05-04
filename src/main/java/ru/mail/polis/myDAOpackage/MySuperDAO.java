@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import com.google.common.collect.Iterators;
 
 import ru.mail.polis.DAO;
+import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
 public class MySuperDAO implements DAO {
@@ -34,7 +35,7 @@ public class MySuperDAO implements DAO {
     private int currentFileIndex;
     private int currentHeap;
 
-    public MySuperDAO(long maxHeap, File rootDir) throws IOException {
+    public MySuperDAO(@NotNull final long maxHeap,@NotNull final File rootDir) throws IOException {
         assert maxHeap < Integer.MAX_VALUE;
         this.maxHeap = (int) maxHeap;
         this.rootDir = rootDir;
@@ -52,14 +53,13 @@ public class MySuperDAO implements DAO {
 
     @NotNull
     @Override
-    public Iterator<Record> iterator(@NotNull ByteBuffer from) throws IOException {
+    public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
         final List<String> fileNames = Files.walk(rootDir.toPath(), 1)
                 .map(path -> path.getFileName().toString())
                 .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))
                 .collect(Collectors.toList());
         final List<MyTableIterator> tableIterators = new LinkedList<>();
         for (String fileName : fileNames) {
-            //final FileTableNotWin fileTable = new FileTableNotWin(new File(rootDir, fileName));
             final FileTableWin fileTable = new FileTableWin(new File(rootDir, fileName));
             final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
             if (fileTableIterator.hasNext()) {
@@ -72,11 +72,13 @@ public class MySuperDAO implements DAO {
         }
         final MyTableIterator[] iterators = new MyTableIterator[tableIterators.size()];
         final MergingTableIterator mergingTableIterator = new MergingTableIterator(tableIterators.toArray(iterators));
-        return Iterators.transform(mergingTableIterator, row -> row.getRecord());
+        final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
+        final Iterator<Row> result = Iterators.filter(collapsedIterator, row -> !row.isDead());
+        return Iterators.transform(result, row -> row.getRecord());
     }
 
     @Override
-    public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
         memTable.put(key, Row.Of(currentFileIndex, key, value, ALIVE));
         currentHeap += (Integer.BYTES
                 + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
@@ -88,12 +90,11 @@ public class MySuperDAO implements DAO {
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
         currentFileIndex++;
-        //FileTableNotWin.write(new File(rootDir, fileTableName), memTable.values().iterator());
         FileTableWin.write(new File(rootDir, fileTableName), memTable.values().iterator());
     }
 
     @Override
-    public void remove(@NotNull ByteBuffer key) throws IOException {
+    public void remove(@NotNull final ByteBuffer key) throws IOException {
         final Row removedRow = memTable.put(key, Row.Of(currentFileIndex, key, TOMBSTONE, DEAD));
         if (removedRow == null) {
             currentHeap += (Integer.BYTES

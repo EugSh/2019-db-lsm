@@ -1,11 +1,7 @@
 package ru.mail.polis.myDAOpackage;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -16,8 +12,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
-
-import com.google.common.primitives.Ints;
 
 public class FileTableNotWin {
     final ByteBuffer rows;
@@ -63,16 +57,6 @@ public class FileTableNotWin {
         };
     }
 
-    private void myUnMap()
-            throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-        Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-        Field unsafeField = unsafeClass.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        Object unsafe = unsafeField.get(null);
-        Method invokeCleaner = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-        invokeCleaner.invoke(unsafe, mmap);
-    }
-
     private int getOffsetsIndex(@NotNull final ByteBuffer from) {
         int left = 0;
         int right = count - 1;
@@ -90,7 +74,7 @@ public class FileTableNotWin {
         return left;
     }
 
-    private ByteBuffer getKeyAt(final int i) {
+    private ByteBuffer getKeyAt(@NotNull final int i) {
         assert 0 <= i && i < count;
         final int offset = offsets.get(i);
         final int keySize = rows.getInt(offset);
@@ -100,7 +84,7 @@ public class FileTableNotWin {
         return keyBB.slice();
     }
 
-    private Row getRowAt(final int i) {
+    private Row getRowAt(@NotNull final int i) {
         assert 0 <= i && i < count;
         int offset = offsets.get(i);
 

@@ -1,12 +1,7 @@
 package ru.mail.polis.myDAOpackage;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.ref.Cleaner;
-import java.lang.ref.PhantomReference;
-import java.lang.ref.Reference;
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
@@ -16,7 +11,6 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.google.common.primitives.Ints;
 
 public class FileTableWin {
     final int count;
@@ -34,7 +28,7 @@ public class FileTableWin {
         }
     }
 
-    private FileChannel openRead(File file) throws IOException {
+    private FileChannel openRead(@NotNull final File file) throws IOException {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
@@ -57,13 +51,6 @@ public class FileTableWin {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-//                if ( !hasNext() ){
-//                    try {
-//                        fc.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
                 return row;
             }
         };
@@ -86,23 +73,14 @@ public class FileTableWin {
         return left;
     }
 
-//    private int getOffset(int i) throws IOException {
-//        try (FileChannel fc = openRead(file)) {
-//            final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
-//            fc.read(offsetBB,fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
-//            offsetBB.rewind();
-//            return offsetBB.getInt();
-//        }
-//    }
-
-    private int getOffset(FileChannel fc, int i) throws IOException {
+    private int getOffset(@NotNull final FileChannel fc, int i) throws IOException {
         final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
         fc.read(offsetBB, fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
         offsetBB.rewind();
         return offsetBB.getInt();
     }
 
-    private ByteBuffer getKeyAt(final int i) throws IOException {
+    private ByteBuffer getKeyAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
         try (FileChannel fc = openRead(file)) {
             final int offset = getOffset(fc, i);
@@ -117,7 +95,7 @@ public class FileTableWin {
         }
     }
 
-    private Row getRowAt(final int i) throws IOException {
+    private Row getRowAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
         try (FileChannel fc = openRead(file)) {
             int offset = getOffset(fc, i);

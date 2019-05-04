@@ -34,7 +34,7 @@ public class MyTableIterator implements Iterator<Row>, Comparable<MyTableIterato
     @Override
     public Row next() {
         assert hasNext;
-        Row row = next;
+        final Row row = next;
         hasNext = iterator.hasNext();
         if (hasNext) {
             next = iterator.next();
@@ -43,7 +43,7 @@ public class MyTableIterator implements Iterator<Row>, Comparable<MyTableIterato
     }
 
     @Override
-    public int compareTo(@NotNull MyTableIterator o) {
+    public int compareTo(@NotNull final MyTableIterator o) {
         return next.compareTo(o.peek());
     }
 }

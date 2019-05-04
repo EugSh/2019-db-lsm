@@ -13,14 +13,14 @@ public class Row implements Comparable<Row> {
     private final int status;
 
 
-    private Row(int index, ByteBuffer key, ByteBuffer value, int status) {
+    private Row(@NotNull final int index,@NotNull final ByteBuffer key,@NotNull final ByteBuffer value,@NotNull final int status) {
         this.index = index;
         this.key = key;
         this.value = value;
         this.status = status;
     }
 
-    public static Row Of(int index, ByteBuffer key, ByteBuffer value, int status) {
+    public static Row Of(@NotNull final int index,@NotNull final ByteBuffer key,@NotNull final ByteBuffer value,@NotNull final int status) {
         return new Row(index, key, value, status);
     }
 
@@ -49,7 +49,13 @@ public class Row implements Comparable<Row> {
     }
 
     @Override
-    public int compareTo(@NotNull Row o) {
+    public int compareTo(@NotNull final Row o) {
+        if (isDead()){
+            return -1;
+        }
+        if (o.isDead()){
+            return 1;
+        }
         if (key.compareTo(o.getKey()) == 0) {
             return -Integer.compare(index, o.getIndex());
         }
