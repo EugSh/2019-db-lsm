@@ -83,7 +83,7 @@ public class MySuperDAO implements DAO {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
-        memTable.put(key, Row.Of(currentFileIndex, key, value, ALIVE));
+        memTable.put(key, Row.of(currentFileIndex, key, value, ALIVE));
         currentHeap += (Integer.BYTES
                 + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
                 + (value.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
@@ -99,7 +99,7 @@ public class MySuperDAO implements DAO {
 
     @Override
     public void remove(@NotNull final ByteBuffer key) throws IOException {
-        final Row removedRow = memTable.put(key, Row.Of(currentFileIndex, key, TOMBSTONE, DEAD));
+        final Row removedRow = memTable.put(key, Row.of(currentFileIndex, key, TOMBSTONE, DEAD));
         if (removedRow == null) {
             currentHeap += (Integer.BYTES
                     + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)

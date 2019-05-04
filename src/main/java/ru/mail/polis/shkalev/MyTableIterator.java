@@ -4,7 +4,7 @@ import java.util.Iterator;
 
 import org.jetbrains.annotations.NotNull;
 
-public class MyTableIterator implements Iterator<Row>, Comparable<MyTableIterator> {
+public final class MyTableIterator implements Iterator<Row>, Comparable<MyTableIterator> {
     private final Iterator<Row> iterator;
     private boolean hasNext;
     private Row next;

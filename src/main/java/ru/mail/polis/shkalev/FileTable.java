@@ -17,11 +17,6 @@ public class FileTable {
     final int fileIndex;
     final File file;
 
-    /***
-     *
-     * @param file
-     * @throws IOException
-     */
     public FileTable(@NotNull final File file) throws IOException {
         this.file = file;
         fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
@@ -37,12 +32,6 @@ public class FileTable {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
-    /***
-     *
-     * @param from
-     * @return
-     * @throws IOException
-     */
     @NotNull
     public Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
@@ -84,7 +73,7 @@ public class FileTable {
         return left;
     }
 
-    private int getOffset(@NotNull final FileChannel fc, int i) throws IOException {
+    private int getOffset(@NotNull final FileChannel fc,@NotNull final int i) throws IOException {
         final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
         fc.read(offsetBB, fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
         offsetBB.rewind();
@@ -135,22 +124,16 @@ public class FileTable {
             statusBB.clear();
             offset += Integer.BYTES;
             if (status == MySuperDAO.DEAD) {
-                return Row.Of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
+                return Row.of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
             } else {
                 final ByteBuffer valueBB = ByteBuffer.allocate(valueSize);
                 fc.read(valueBB, offset);
                 valueBB.rewind();
-                return Row.Of(fileIndex, keyBB, valueBB, status);
+                return Row.of(fileIndex, keyBB, valueBB, status);
             }
         }
     }
 
-    /***
-     *
-     * @param to
-     * @param rows
-     * @throws IOException
-     */
     public static void write(@NotNull final File to,
             @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
