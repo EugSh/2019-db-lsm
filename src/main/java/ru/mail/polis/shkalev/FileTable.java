@@ -136,7 +136,9 @@ public class FileTable {
 
     public static void write(@NotNull final File to,
             @NotNull final Iterator<Row> rows) throws IOException {
-        try (FileChannel fileChannel = FileChannel.open(to.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+        try (FileChannel fileChannel = FileChannel.open(to.toPath(),
+                StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE)) {
             final List<Integer> offsets = new ArrayList<>();
             int offset = 0;
             while (rows.hasNext()) {
