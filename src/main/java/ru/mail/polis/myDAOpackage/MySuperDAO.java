@@ -35,7 +35,7 @@ public class MySuperDAO implements DAO {
     private int currentFileIndex;
     private int currentHeap;
 
-    public MySuperDAO(@NotNull final long maxHeap,@NotNull final File rootDir) throws IOException {
+    public MySuperDAO(@NotNull final long maxHeap, @NotNull final File rootDir) throws IOException {
         assert maxHeap < Integer.MAX_VALUE;
         this.maxHeap = (int) maxHeap;
         this.rootDir = rootDir;
@@ -71,7 +71,7 @@ public class MySuperDAO implements DAO {
             tableIterators.add(MyTableIterator.of(memTableIterator));
         }
         final MyTableIterator[] iterators = new MyTableIterator[tableIterators.size()];
-        final MergingTableIterator mergingTableIterator = new MergingTableIterator(tableIterators.toArray(iterators));
+        final Iterator<Row> mergingTableIterator = Iterators.mergeSorted(tableIterators, Row::compareTo);
         final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
         final Iterator<Row> result = Iterators.filter(collapsedIterator, row -> !row.isDead());
         return Iterators.transform(result, row -> row.getRecord());
