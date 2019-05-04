@@ -32,12 +32,6 @@ public class FileTable {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
-    /***
-     * get iterator
-     * @param from
-     * @return
-     * @throws IOException
-     */
     @NotNull
     public Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
@@ -140,12 +134,6 @@ public class FileTable {
         }
     }
 
-    /***
-     * write on disk
-     * @param to
-     * @param rows
-     * @throws IOException
-     */
     public static void write(@NotNull final File to,
             @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(),

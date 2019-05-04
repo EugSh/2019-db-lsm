@@ -36,12 +36,6 @@ public class MySuperDAO implements DAO {
     private int currentFileIndex;
     private int currentHeap;
 
-    /***
-     * LSM storage
-     * @param maxHeap
-     * @param rootDir
-     * @throws IOException
-     */
     public MySuperDAO(@NotNull final long maxHeap, @NotNull final File rootDir) throws IOException {
         assert maxHeap < Integer.MAX_VALUE;
         this.maxHeap = (int) maxHeap;
