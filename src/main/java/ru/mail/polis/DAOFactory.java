@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 
+import ru.mail.polis.myDAOpackage.MySuperDAO;
+
 /**
  * Custom {@link DAO} factory.
  *
@@ -52,6 +54,6 @@ public final class DAOFactory {
         if (!data.isDirectory()) {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
-        return new MyDAO();
+        return  new MySuperDAO(MAX_HEAP / 3, data);
     }
 }

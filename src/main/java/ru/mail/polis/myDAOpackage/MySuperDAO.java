@@ -59,11 +59,10 @@ public class MySuperDAO implements DAO {
                 .collect(Collectors.toList());
         final List<MyTableIterator> tableIterators = new LinkedList<>();
         for (String fileName : fileNames) {
-            //final FileTable fileTable = new FileTable(new File(rootDir, fileName));
-            final FileTableFC fileTable = new FileTableFC(new File(rootDir, fileName));
+            //final FileTableNotWin fileTable = new FileTableNotWin(new File(rootDir, fileName));
+            final FileTableWin fileTable = new FileTableWin(new File(rootDir, fileName));
             final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
             if (fileTableIterator.hasNext()) {
-                //return Iterators.transform(fileTableIterator, row -> row.getRecord());
                 tableIterators.add(fileTableIterator);
             }
         }
@@ -81,7 +80,7 @@ public class MySuperDAO implements DAO {
         memTable.put(key, Row.Of(currentFileIndex, key, value, ALIVE));
         currentHeap += (Integer.BYTES
                 + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
-                + (value.remaining()  + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER )
+                + (value.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
                 + Integer.BYTES);
         checkHeap();
     }
@@ -89,19 +88,19 @@ public class MySuperDAO implements DAO {
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
         currentFileIndex++;
-        //FileTable.write(new File(rootDir, fileTableName), memTable.values().iterator());
-        FileTable.writeFOS(new File(rootDir, fileTableName), memTable.values().iterator());
+        //FileTableNotWin.write(new File(rootDir, fileTableName), memTable.values().iterator());
+        FileTableWin.write(new File(rootDir, fileTableName), memTable.values().iterator());
     }
 
     @Override
     public void remove(@NotNull ByteBuffer key) throws IOException {
         final Row removedRow = memTable.put(key, Row.Of(currentFileIndex, key, TOMBSTONE, DEAD));
-        if (removedRow == null){
+        if (removedRow == null) {
             currentHeap += (Integer.BYTES
                     + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
                     + (LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
-                    +  Integer.BYTES);
-        } else if (!removedRow.isDead()){
+                    + Integer.BYTES);
+        } else if (!removedRow.isDead()) {
             currentHeap -= (removedRow.getValue().remaining());
         }
         checkHeap();
@@ -110,7 +109,7 @@ public class MySuperDAO implements DAO {
     private void checkHeap() throws IOException {
         if (currentHeap >= maxHeap) {
             dump();
-            currentHeap =0;
+            currentHeap = 0;
             memTable.clear();
         }
     }
@@ -118,9 +117,5 @@ public class MySuperDAO implements DAO {
     @Override
     public void close() throws IOException {
         dump();
-    }
-
-    public static void main(String[] args) {
-        System.out.println(System.getProperty("sun.arch.data.model"));
     }
 }

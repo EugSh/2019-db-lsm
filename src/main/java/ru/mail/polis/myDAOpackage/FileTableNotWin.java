@@ -19,14 +19,14 @@ import org.jetbrains.annotations.NotNull;
 
 import com.google.common.primitives.Ints;
 
-public class FileTable {
+public class FileTableNotWin {
     final ByteBuffer rows;
     final IntBuffer offsets;
     final int count;
     final int fileIndex;
     final ByteBuffer mmap;
 
-    public FileTable(@NotNull final File file) throws IOException {
+    public FileTableNotWin(@NotNull final File file) throws IOException {
         fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
             final ByteBuffer map = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size()).order(ByteOrder.BIG_ENDIAN);
@@ -58,7 +58,7 @@ public class FileTable {
             @Override
             public Row next() {
                 assert hasNext();
-                return  getRowAt(index++);
+                return getRowAt(index++);
             }
         };
     }
@@ -127,7 +127,7 @@ public class FileTable {
         }
     }
 
-    public static void writeFC(@NotNull final File to, @NotNull final Iterator<Row> rows) throws IOException {
+    public static void write(@NotNull final File to, @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             final List<Integer> offsets = new ArrayList<>();
             int offset = 0;
@@ -157,46 +157,6 @@ public class FileTable {
                 fileChannel.write(Bytes.fromInt(elemOffSets));
             }
             fileChannel.write(Bytes.fromInt(offsets.size()));
-        }
-    }
-
-    public static void writeFOS(@NotNull final File to, @NotNull final Iterator<Row> rows)
-            throws IOException {
-        try(FileOutputStream fileOutputStream = new FileOutputStream(to,false)){
-            final  List<Integer> offsets = new ArrayList<>();
-            int offset = 0;
-            while(rows.hasNext()){
-                offsets.add(offset);
-                final Row row = rows.next();
-
-                //Key
-                fileOutputStream.write(Ints.toByteArray(row.getKey().remaining()));
-                final byte[] keys = new byte[row.getKey().remaining()];
-                row.getKey().get(keys).position(0);
-                fileOutputStream.write(keys);
-                offset += (Integer.BYTES + row.getKey().remaining());
-
-                //Value
-                fileOutputStream.write(Ints.toByteArray(row.getValue().remaining()));
-                offset += Integer.BYTES;
-
-                if (!row.isDead()){
-                    fileOutputStream.write(Ints.toByteArray(MySuperDAO.ALIVE));
-                    offset +=Integer.BYTES;
-                    final  byte[] values = new byte[row.getValue().remaining()];
-                    row.getValue().get(values).position(0);
-                    fileOutputStream.write(values);
-                    offset += row.getValue().remaining();
-                } else {
-                    fileOutputStream.write(Ints.toByteArray(MySuperDAO.DEAD));
-                    offset += Integer.BYTES;
-                }
-            }
-
-            for(Integer elemOffSets: offsets){
-                fileOutputStream.write(Ints.toByteArray(elemOffSets));
-            }
-            fileOutputStream.write(Ints.toByteArray(offsets.size()));
         }
     }
 }
