@@ -1,4 +1,4 @@
-package ru.mail.polis.myDAOpackage;
+package ru.mail.polis.shkalev;
 
 import java.util.Iterator;
 

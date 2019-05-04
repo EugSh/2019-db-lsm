@@ -1,4 +1,4 @@
-package ru.mail.polis.myDAOpackage;
+package ru.mail.polis.shkalev;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -40,13 +41,15 @@ public class MySuperDAO implements DAO {
         this.maxHeap = (int) maxHeap;
         this.rootDir = rootDir;
         currentHeap = 0;
-        final Integer lastFileIndex = Files.walk(rootDir.toPath(), 1)
+        final Integer lastFileIndex;
+        try (Stream<Integer> stream = Files.walk(rootDir.toPath(), 1)
                 .map(path -> path.getFileName().toString())
                 .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))
                 .map(str -> Integer.parseInt(str.substring(2, str.length() - 4)))
-                .sorted(Comparator.reverseOrder())
-                .findFirst()
-                .orElse(0);
+                .sorted(Comparator.reverseOrder())){
+            lastFileIndex = stream.findFirst()
+                    .orElse(0);
+        }
         currentFileIndex = lastFileIndex + 1;
     }
 
@@ -54,13 +57,15 @@ public class MySuperDAO implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
-        final List<String> fileNames = Files.walk(rootDir.toPath(), 1)
+        final List<String> fileNames;
+        try(Stream<String> stream = Files.walk(rootDir.toPath(), 1)
                 .map(path -> path.getFileName().toString())
-                .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))
-                .collect(Collectors.toList());
+                .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))) {
+            fileNames = stream.collect(Collectors.toList());
+        }
         final List<MyTableIterator> tableIterators = new LinkedList<>();
-        for (String fileName : fileNames) {
-            final FileTableWin fileTable = new FileTableWin(new File(rootDir, fileName));
+        for (final String fileName : fileNames) {
+            final FileTable fileTable = new FileTable(new File(rootDir, fileName));
             final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
             if (fileTableIterator.hasNext()) {
                 tableIterators.add(fileTableIterator);
@@ -70,7 +75,6 @@ public class MySuperDAO implements DAO {
         if (memTableIterator.hasNext()) {
             tableIterators.add(MyTableIterator.of(memTableIterator));
         }
-        final MyTableIterator[] iterators = new MyTableIterator[tableIterators.size()];
         final Iterator<Row> mergingTableIterator = Iterators.mergeSorted(tableIterators, Row::compareTo);
         final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
         final Iterator<Row> result = Iterators.filter(collapsedIterator, row -> !row.isDead());
@@ -90,7 +94,7 @@ public class MySuperDAO implements DAO {
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
         currentFileIndex++;
-        FileTableWin.write(new File(rootDir, fileTableName), memTable.values().iterator());
+        FileTable.write(new File(rootDir, fileTableName), memTable.values().iterator());
     }
 
     @Override

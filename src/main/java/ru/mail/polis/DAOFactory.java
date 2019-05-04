@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 
-import ru.mail.polis.myDAOpackage.MySuperDAO;
+import ru.mail.polis.shkalev.MySuperDAO;
 
 /**
  * Custom {@link DAO} factory.

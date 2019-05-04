@@ -1,4 +1,4 @@
-package ru.mail.polis.myDAOpackage;
+package ru.mail.polis.shkalev;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,12 +12,17 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 
-public class FileTableWin {
+public class FileTable {
     final int count;
     final int fileIndex;
     final File file;
 
-    public FileTableWin(@NotNull final File file) throws IOException {
+    /***
+     *
+     * @param file
+     * @throws IOException
+     */
+    public FileTable(@NotNull final File file) throws IOException {
         this.file = file;
         fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
         try (FileChannel fc = openRead(file)) {
@@ -32,6 +37,12 @@ public class FileTableWin {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
+    /***
+     *
+     * @param from
+     * @return
+     * @throws IOException
+     */
     @NotNull
     public Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
@@ -134,7 +145,14 @@ public class FileTableWin {
         }
     }
 
-    public static void write(@NotNull final File to, @NotNull final Iterator<Row> rows) throws IOException {
+    /***
+     *
+     * @param to
+     * @param rows
+     * @throws IOException
+     */
+    public static void write(@NotNull final File to,
+            @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             final List<Integer> offsets = new ArrayList<>();
             int offset = 0;
@@ -150,17 +168,17 @@ public class FileTableWin {
                 //Value
                 fileChannel.write(Bytes.fromInt(row.getValue().remaining()));
                 offset += Integer.BYTES;
-                if (!row.isDead()) {
+                if (row.isDead()) {
+                    fileChannel.write(Bytes.fromInt(MySuperDAO.DEAD));
+                    offset += Integer.BYTES;
+                } else {
                     fileChannel.write(Bytes.fromInt(MySuperDAO.ALIVE));
                     offset += Integer.BYTES;
                     fileChannel.write(row.getValue());
                     offset += row.getValue().remaining();
-                } else {
-                    fileChannel.write(Bytes.fromInt(MySuperDAO.DEAD));
-                    offset += Integer.BYTES;
                 }
             }
-            for (Integer elemOffSets : offsets) {
+            for (final Integer elemOffSets : offsets) {
                 fileChannel.write(Bytes.fromInt(elemOffSets));
             }
             fileChannel.write(Bytes.fromInt(offsets.size()));
