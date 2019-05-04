@@ -148,7 +148,7 @@ public class FileTable {
                 //Key
                 fileChannel.write(Bytes.fromInt(row.getKey().remaining()));
                 fileChannel.write(row.getKey());
-                offset += (Integer.BYTES + row.getKey().remaining());
+                offset += Integer.BYTES + row.getKey().remaining();
 
                 //Value
                 fileChannel.write(Bytes.fromInt(row.getValue().remaining()));
