@@ -3,12 +3,11 @@ package ru.mail.polis.myDAOpackage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.ref.Cleaner;
+import java.lang.ref.PhantomReference;
+import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -19,30 +18,20 @@ import org.jetbrains.annotations.NotNull;
 
 import com.google.common.primitives.Ints;
 
-public class FileTable {
-    final ByteBuffer rows;
-    final IntBuffer offsets;
+public class FileTableFC {
     final int count;
     final int fileIndex;
-    final ByteBuffer mmap;
 
-    public FileTable(@NotNull final File file) throws IOException {
+    final FileChannel fc;
+
+    public FileTableFC(@NotNull final File file) throws IOException {
         fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
-        try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
-            final ByteBuffer map = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size()).order(ByteOrder.BIG_ENDIAN);
-            mmap = map;
-            assert fileChannel.size() < Integer.MAX_VALUE;
-            final int size = (int) fileChannel.size();
-            final ByteBuffer countBB = map.duplicate()
-                    .position(size - Integer.BYTES);
-            count = countBB.getInt();
-            final ByteBuffer offsetsBB = map.duplicate().position(size - Integer.BYTES * count - Integer.BYTES)
-                    .limit(size - Integer.BYTES);
-            offsets = offsetsBB.slice().asIntBuffer();
-            rows = map.duplicate()
-                    .limit(size - Integer.BYTES * count - Integer.BYTES)
-                    .slice();
-        }
+        fc = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        final ByteBuffer countBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(countBB,fc.size() - Integer.BYTES);
+        countBB.rewind();
+        count = countBB.getInt();
+
     }
 
     @NotNull
@@ -58,22 +47,25 @@ public class FileTable {
             @Override
             public Row next() {
                 assert hasNext();
-                return  getRowAt(index++);
+                Row row = null;
+                try {
+                    row = getRowAt(index++);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                if ( !hasNext() ){
+                    try {
+                        fc.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return row;
             }
         };
     }
 
-    private void myUnMap()
-            throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-        Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-        Field unsafeField = unsafeClass.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        Object unsafe = unsafeField.get(null);
-        Method invokeCleaner = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-        invokeCleaner.invoke(unsafe, mmap);
-    }
-
-    private int getOffsetsIndex(@NotNull final ByteBuffer from) {
+    private int getOffsetsIndex(@NotNull final ByteBuffer from) throws IOException {
         int left = 0;
         int right = count - 1;
         while (left <= right) {
@@ -90,40 +82,60 @@ public class FileTable {
         return left;
     }
 
-    private ByteBuffer getKeyAt(final int i) {
+    private int getOffset(int i) throws IOException {
+        final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(offsetBB,fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
+        offsetBB.rewind();
+        return offsetBB.getInt();
+    }
+
+    private ByteBuffer getKeyAt(final int i) throws IOException {
         assert 0 <= i && i < count;
-        final int offset = offsets.get(i);
-        final int keySize = rows.getInt(offset);
-        final ByteBuffer keyBB = rows.duplicate()
-                .position(offset + Integer.BYTES)
-                .limit(offset + Integer.BYTES + keySize);
+            final int offset = getOffset(i);
+            final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
+            fc.read(keySizeBB,offset);
+            keySizeBB.rewind();
+            final int keySize = keySizeBB.getInt();
+            final ByteBuffer keyBB = ByteBuffer.allocate(keySize);
+            fc.read(keyBB,offset + Integer.BYTES);
+            keyBB.rewind();
         return keyBB.slice();
     }
 
-    private Row getRowAt(final int i) {
+    private Row getRowAt(final int i) throws IOException {
         assert 0 <= i && i < count;
-        int offset = offsets.get(i);
+        int offset = getOffset(i);
 
         //Key
-        final int keySize = rows.getInt(offset);
+        final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(keySizeBB,offset);
+        keySizeBB.rewind();
+        final int keySize = keySizeBB.getInt();
         offset += Integer.BYTES;
-        final ByteBuffer keyBB = rows.duplicate()
-                .position(offset)
-                .limit(offset + keySize);
-        offset += keySize;
+        final ByteBuffer keyBB = ByteBuffer.allocate(keySize);
+        fc.read(keyBB,offset);
+        keyBB.rewind();
+        offset +=keySize;
 
         //Value
-        final int valueSize = rows.getInt(offset);
+        final ByteBuffer valueSizeBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(valueSizeBB,offset);
+        valueSizeBB.rewind();
+        final int valueSize = valueSizeBB.getInt();
+        offset +=Integer.BYTES;
+        final ByteBuffer statusBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(statusBB,offset);
+        statusBB.rewind();
+        final int status = statusBB.getInt();
+        statusBB.clear();
         offset += Integer.BYTES;
-        final int status = rows.getInt(offset);
-        offset += Integer.BYTES;
-        if (status == MySuperDAO.DEAD) {
-            return Row.Of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
+        if (status == MySuperDAO.DEAD){
+            return Row.Of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE,status);
         } else {
-            final ByteBuffer valueBB = rows.duplicate()
-                    .position(offset)
-                    .limit(offset + valueSize);
-            return Row.Of(fileIndex, keyBB.slice(), valueBB.slice(), status);
+            final ByteBuffer valueBB = ByteBuffer.allocate(valueSize);
+            fc.read(valueBB,offset);
+            valueBB.rewind();
+            return Row.Of(fileIndex, keyBB,valueBB,status);
         }
     }
 
@@ -199,4 +211,5 @@ public class FileTable {
             fileOutputStream.write(Ints.toByteArray(offsets.size()));
         }
     }
+    
 }

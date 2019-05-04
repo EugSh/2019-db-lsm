@@ -23,6 +23,9 @@ public class MySuperDAO implements DAO {
     public static final ByteBuffer TOMBSTONE = ByteBuffer.allocate(0);
     public static final int ALIVE = 1;
     public static final int DEAD = 0;
+    private static final int MODEL = Integer.parseInt(System.getProperty("sun.arch.data.model"));
+    private static final int LINK_SIZE = MODEL == 64 ? 8 : 4;
+    private static final int NUMBER_FIELDS_BYTEBUFFER = 7;
     private static final String PREFIX = "FT";
     private static final String SUFFIX = ".txt";
     private final NavigableMap<ByteBuffer, Row> memTable = new TreeMap<>();
@@ -44,7 +47,6 @@ public class MySuperDAO implements DAO {
                 .findFirst()
                 .orElse(0);
         currentFileIndex = lastFileIndex + 1;
-
     }
 
 
@@ -57,9 +59,11 @@ public class MySuperDAO implements DAO {
                 .collect(Collectors.toList());
         final List<MyTableIterator> tableIterators = new LinkedList<>();
         for (String fileName : fileNames) {
-            final FileTable fileTable = new FileTable(new File(rootDir, fileName));
+            //final FileTable fileTable = new FileTable(new File(rootDir, fileName));
+            final FileTableFC fileTable = new FileTableFC(new File(rootDir, fileName));
             final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
             if (fileTableIterator.hasNext()) {
+                //return Iterators.transform(fileTableIterator, row -> row.getRecord());
                 tableIterators.add(fileTableIterator);
             }
         }
@@ -69,18 +73,17 @@ public class MySuperDAO implements DAO {
         }
         final MyTableIterator[] iterators = new MyTableIterator[tableIterators.size()];
         final MergingTableIterator mergingTableIterator = new MergingTableIterator(tableIterators.toArray(iterators));
-        //final Iterator<Row> rowIterator = Iterators.filter(mergingTableIterator, row -> !row.isDead());
         return Iterators.transform(mergingTableIterator, row -> row.getRecord());
     }
 
     @Override
     public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
         memTable.put(key, Row.Of(currentFileIndex, key, value, ALIVE));
-        currentHeap += (key.remaining() + Integer.BYTES + value.remaining() + Integer.BYTES);
-        if (currentHeap >= maxHeap) {
-            dump();
-            memTable.clear();
-        }
+        currentHeap += (Integer.BYTES
+                + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
+                + (value.remaining()  + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER )
+                + Integer.BYTES);
+        checkHeap();
     }
 
     private void dump() throws IOException {
@@ -92,14 +95,32 @@ public class MySuperDAO implements DAO {
 
     @Override
     public void remove(@NotNull ByteBuffer key) throws IOException {
-        Row removedRow = memTable.put(key, Row.Of(currentFileIndex, key, TOMBSTONE, DEAD));
-        if (removedRow != null && !removedRow.isDead()) {
-            currentHeap -= removedRow.getValue().remaining();
+        final Row removedRow = memTable.put(key, Row.Of(currentFileIndex, key, TOMBSTONE, DEAD));
+        if (removedRow == null){
+            currentHeap += (Integer.BYTES
+                    + (key.remaining() + LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
+                    + (LINK_SIZE + Integer.BYTES * NUMBER_FIELDS_BYTEBUFFER)
+                    +  Integer.BYTES);
+        } else if (!removedRow.isDead()){
+            currentHeap -= (removedRow.getValue().remaining());
+        }
+        checkHeap();
+    }
+
+    private void checkHeap() throws IOException {
+        if (currentHeap >= maxHeap) {
+            dump();
+            currentHeap =0;
+            memTable.clear();
         }
     }
 
     @Override
     public void close() throws IOException {
         dump();
+    }
+
+    public static void main(String[] args) {
+        System.out.println(System.getProperty("sun.arch.data.model"));
     }
 }

@@ -20,38 +20,38 @@ public class Row implements Comparable<Row> {
         this.status = status;
     }
 
-    public static Row Of(int index, ByteBuffer key, ByteBuffer value, int status){
-        return new Row(index,key,value,status);
+    public static Row Of(int index, ByteBuffer key, ByteBuffer value, int status) {
+        return new Row(index, key, value, status);
     }
 
-    public Record getRecord(){
-        if (isDead()){
-            return Record.of(MySuperDAO.TOMBSTONE,MySuperDAO.TOMBSTONE);
-        }else{
+    public Record getRecord() {
+        if (isDead()) {
+            return Record.of(MySuperDAO.TOMBSTONE, MySuperDAO.TOMBSTONE);
+        } else {
             return Record.of(key, value);
         }
     }
 
-    public boolean isDead(){
+    public boolean isDead() {
         return status == MySuperDAO.DEAD;
     }
 
-    public ByteBuffer getKey(){
+    public ByteBuffer getKey() {
         return key.asReadOnlyBuffer();
     }
 
-    public ByteBuffer getValue(){
+    public ByteBuffer getValue() {
         return value.asReadOnlyBuffer();
     }
 
-    public int getIndex(){
+    public int getIndex() {
         return index;
     }
 
     @Override
     public int compareTo(@NotNull Row o) {
         if (key.compareTo(o.getKey()) == 0) {
-            return -Integer.compare(index,o.getIndex());
+            return -Integer.compare(index, o.getIndex());
         }
         return key.compareTo(o.getKey());
     }
