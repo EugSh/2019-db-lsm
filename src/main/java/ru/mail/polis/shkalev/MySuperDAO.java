@@ -39,7 +39,7 @@ public class MySuperDAO implements DAO {
     private int currentFileIndex;
     private int currentHeap;
 
-    /***
+    /**
      * Creates LSM storage.
      *
      * @param maxHeap threshold of size of the memTable

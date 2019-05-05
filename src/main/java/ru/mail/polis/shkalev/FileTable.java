@@ -38,7 +38,7 @@ public class FileTable {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
-    /***
+    /**
      * Creates file iterator.
      *
      * @param from the key from which the iterator will begin
@@ -147,7 +147,7 @@ public class FileTable {
         }
     }
 
-    /***
+    /**
      * Write row to file.
      *
      * @param to file being recorded
