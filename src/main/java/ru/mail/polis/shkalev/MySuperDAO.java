@@ -3,7 +3,11 @@ package ru.mail.polis.shkalev;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -36,6 +40,12 @@ public class MySuperDAO implements DAO {
     private int currentFileIndex;
     private int currentHeap;
 
+    /***
+     * Creates LSM storage
+     * @param maxHeap threshold of size of the memTable
+     * @param rootDir the folder in which files will be written and read
+     * @throws IOException if an I/O error is thrown by a File walker
+     */
     public MySuperDAO(@NotNull final long maxHeap, @NotNull final File rootDir) throws IOException {
         assert maxHeap < Integer.MAX_VALUE;
         this.maxHeap = (int) maxHeap;
@@ -46,31 +56,31 @@ public class MySuperDAO implements DAO {
                 .map(path -> path.getFileName().toString())
                 .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))
                 .map(str -> Integer.parseInt(str.substring(2, str.length() - 4)))
-                .sorted(Comparator.reverseOrder())){
+                .sorted(Comparator.reverseOrder())) {
             lastFileIndex = stream.findFirst()
                     .orElse(0);
         }
         currentFileIndex = lastFileIndex + 1;
     }
 
-
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
-        final List<String> fileNames;
-        try(Stream<String> stream = Files.walk(rootDir.toPath(), 1)
-                .map(path -> path.getFileName().toString())
-                .filter(str -> str.startsWith(PREFIX) && str.endsWith(SUFFIX))) {
-            fileNames = stream.collect(Collectors.toList());
-        }
         final List<MyTableIterator> tableIterators = new LinkedList<>();
-        for (final String fileName : fileNames) {
-            final FileTable fileTable = new FileTable(new File(rootDir, fileName));
-            final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
-            if (fileTableIterator.hasNext()) {
-                tableIterators.add(fileTableIterator);
+        Files.walkFileTree(rootDir.toPath(), new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
+                if (file.getFileName().toString().startsWith(PREFIX) && file.getFileName().toString().endsWith(SUFFIX)){
+                    final FileTable fileTable = new FileTable(new File(rootDir, file.getFileName().toString()));
+                    final MyTableIterator fileTableIterator = MyTableIterator.of(fileTable.iterator(from));
+                    if (fileTableIterator.hasNext()) {
+                        tableIterators.add(fileTableIterator);
+                    }
+                }
+                return FileVisitResult.CONTINUE;
             }
-        }
+        });
+
         final Iterator<Row> memTableIterator = memTable.tailMap(from).values().iterator();
         if (memTableIterator.hasNext()) {
             tableIterators.add(MyTableIterator.of(memTableIterator));

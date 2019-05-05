@@ -17,6 +17,11 @@ public class FileTable {
     final int fileIndex;
     final File file;
 
+    /**
+     * Creates an object that is a file on disk, with the ability to create an iterator on this file
+     * @param file file for which you need to get a table
+     * @throws IOException if an I/O error is thrown by a read method
+     */
     public FileTable(@NotNull final File file) throws IOException {
         this.file = file;
         fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
@@ -32,6 +37,12 @@ public class FileTable {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
+    /***
+     * Creates file iterator
+     * @param from the key from which the iterator will begin
+     * @return file iterator
+     * @throws IOException if an I/O error is thrown by a read method
+     */
     @NotNull
     public Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
@@ -134,6 +145,12 @@ public class FileTable {
         }
     }
 
+    /***
+     * Write row to file
+     * @param to file being recorded
+     * @param rows strings to be written to file
+     * @throws IOException if an I/O error is thrown by a write method
+     */
     public static void write(@NotNull final File to,
             @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(),

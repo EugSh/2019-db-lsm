@@ -30,6 +30,10 @@ public final class Row implements Comparable<Row> {
         return new Row(index, key, value, status);
     }
 
+    /**
+     * Creates an object of class Record
+     * @return Record
+     */
     public Record getRecord() {
         if (isDead()) {
             return Record.of(MySuperDAO.TOMBSTONE, MySuperDAO.TOMBSTONE);
