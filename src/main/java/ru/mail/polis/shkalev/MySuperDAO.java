@@ -14,7 +14,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.jetbrains.annotations.NotNull;
@@ -41,7 +40,8 @@ public class MySuperDAO implements DAO {
     private int currentHeap;
 
     /***
-     * Creates LSM storage
+     * Creates LSM storage.
+     *
      * @param maxHeap threshold of size of the memTable
      * @param rootDir the folder in which files will be written and read
      * @throws IOException if an I/O error is thrown by a File walker

@@ -31,7 +31,8 @@ public final class Row implements Comparable<Row> {
     }
 
     /**
-     * Creates an object of class Record
+     * Creates an object of class Record.
+     *
      * @return Record
      */
     public Record getRecord() {
