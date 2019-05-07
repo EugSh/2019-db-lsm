@@ -101,7 +101,9 @@ public class MySuperDAO implements DAO {
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
         currentFileIndex++;
-        FileTable.write(new File(rootDir, fileTableName), memTable.values().iterator());
+        File table = new File(rootDir, fileTableName);
+        FileTable.write(table, memTable.values().iterator());
+        tables.add(new FileTable(table));
     }
 
     @Override
