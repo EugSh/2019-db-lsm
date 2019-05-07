@@ -74,7 +74,7 @@ public class MySuperDAO implements DAO {
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
         final List<MyTableIterator> tableIterators = new LinkedList<>();
-        for (FileTable fileT : tables) {
+        for (final FileTable fileT : tables) {
             tableIterators.add(MyTableIterator.of(fileT.iterator(from)));
         }
 

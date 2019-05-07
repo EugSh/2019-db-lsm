@@ -24,7 +24,9 @@ class FileTable {
      */
     FileTable(@NotNull final File file) throws IOException {
         this.file = file;
-        this.fileIndex = Integer.parseInt(file.getName().substring(MySuperDAO.PREFIX.length(), file.getName().length() - MySuperDAO.SUFFIX.length()));
+        this.fileIndex = Integer.parseInt(file
+                .getName()
+                .substring(MySuperDAO.PREFIX.length(), file.getName().length() - MySuperDAO.SUFFIX.length()));
         try (FileChannel fc = openRead(file)) {
             final ByteBuffer countBB = ByteBuffer.allocate(Integer.BYTES);
             fc.read(countBB, fc.size() - Integer.BYTES);
