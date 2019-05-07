@@ -4,7 +4,7 @@ import java.util.Iterator;
 
 import org.jetbrains.annotations.NotNull;
 
-public final class MyTableIterator implements Iterator<Row>, Comparable<MyTableIterator> {
+public final class MyTableIterator implements Iterator<Row> {
     private final Iterator<Row> iterator;
     private boolean hasNext;
     private Row next;
@@ -40,10 +40,5 @@ public final class MyTableIterator implements Iterator<Row>, Comparable<MyTableI
             next = iterator.next();
         }
         return row;
-    }
-
-    @Override
-    public int compareTo(@NotNull final MyTableIterator o) {
-        return next.compareTo(o.peek());
     }
 }

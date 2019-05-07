@@ -11,11 +11,10 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-
-public class FileTable {
-    final int count;
-    final int fileIndex;
-    final File file;
+class FileTable {
+    private final int count;
+    private final int fileIndex;
+    private final File file;
 
     /**
      * Creates an object that is a file on disk, with the ability to create an iterator on this file.
@@ -23,18 +22,18 @@ public class FileTable {
      * @param file file for which you need to get a table
      * @throws IOException if an I/O error is thrown by a read method
      */
-    public FileTable(@NotNull final File file) throws IOException {
+    FileTable(@NotNull final File file) throws IOException {
         this.file = file;
-        fileIndex = Integer.parseInt(file.getName().substring(2, file.getName().length() - 4));
+        this.fileIndex = Integer.parseInt(file.getName().substring(MySuperDAO.PREFIX.length(), file.getName().length() - MySuperDAO.SUFFIX.length()));
         try (FileChannel fc = openRead(file)) {
             final ByteBuffer countBB = ByteBuffer.allocate(Integer.BYTES);
             fc.read(countBB, fc.size() - Integer.BYTES);
             countBB.rewind();
-            count = countBB.getInt();
+            this.count = countBB.getInt();
         }
     }
 
-    private FileChannel openRead(@NotNull final File file) throws IOException {
+    private static FileChannel openRead(@NotNull final File file) throws IOException {
         return FileChannel.open(file.toPath(), StandardOpenOption.READ);
     }
 
@@ -46,7 +45,7 @@ public class FileTable {
      * @throws IOException if an I/O error is thrown by a read method
      */
     @NotNull
-    public Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
+    Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
             int index = getOffsetsIndex(from);
 
@@ -86,7 +85,7 @@ public class FileTable {
         return left;
     }
 
-    private int getOffset(@NotNull final FileChannel fc,@NotNull final int i) throws IOException {
+    private int getOffset(@NotNull final int i, @NotNull final FileChannel fc) throws IOException {
         final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
         fc.read(offsetBB, fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
         offsetBB.rewind();
@@ -96,53 +95,43 @@ public class FileTable {
     private ByteBuffer getKeyAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
         try (FileChannel fc = openRead(file)) {
-            final int offset = getOffset(fc, i);
-            final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
-            fc.read(keySizeBB, offset);
-            keySizeBB.rewind();
-            final int keySize = keySizeBB.getInt();
-            final ByteBuffer keyBB = ByteBuffer.allocate(keySize);
-            fc.read(keyBB, offset + Integer.BYTES);
-            keyBB.rewind();
-            return keyBB.slice();
+            final int offset = getOffset(i, fc);
+            return readByteBuffer(offset, fc);
         }
+    }
+
+    private ByteBuffer readByteBuffer(@NotNull final int offset, @NotNull final FileChannel fc) throws IOException {
+        final ByteBuffer bufferSize = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(bufferSize, offset);
+        bufferSize.rewind();
+        final ByteBuffer buffer = ByteBuffer.allocate(bufferSize.getInt());
+        fc.read(buffer, offset + Integer.BYTES);
+        buffer.rewind();
+        return buffer.slice();
     }
 
     private Row getRowAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
         try (FileChannel fc = openRead(file)) {
-            int offset = getOffset(fc, i);
+            int offset = getOffset(i, fc);
 
             //Key
-            final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
-            fc.read(keySizeBB, offset);
-            keySizeBB.rewind();
-            final int keySize = keySizeBB.getInt();
-            offset += Integer.BYTES;
-            final ByteBuffer keyBB = ByteBuffer.allocate(keySize);
-            fc.read(keyBB, offset);
-            keyBB.rewind();
-            offset += keySize;
+            final ByteBuffer keyBB = readByteBuffer(offset, fc);
+            offset += Integer.BYTES + keyBB.remaining();
 
-            //Value
-            final ByteBuffer valueSizeBB = ByteBuffer.allocate(Integer.BYTES);
-            fc.read(valueSizeBB, offset);
-            valueSizeBB.rewind();
-            final int valueSize = valueSizeBB.getInt();
-            offset += Integer.BYTES;
+            //Status
             final ByteBuffer statusBB = ByteBuffer.allocate(Integer.BYTES);
             fc.read(statusBB, offset);
             statusBB.rewind();
             final int status = statusBB.getInt();
-            statusBB.clear();
             offset += Integer.BYTES;
+
             if (status == MySuperDAO.DEAD) {
                 return Row.of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
             } else {
-                final ByteBuffer valueBB = ByteBuffer.allocate(valueSize);
-                fc.read(valueBB, offset);
-                valueBB.rewind();
-                return Row.of(fileIndex, keyBB, valueBB, status);
+                //Value
+                final ByteBuffer valueBB = readByteBuffer(offset, fc);
+                return Row.of(fileIndex, keyBB.slice(), valueBB.slice(), status);
             }
         }
     }
@@ -150,11 +139,11 @@ public class FileTable {
     /**
      * Write row to file.
      *
-     * @param to file being recorded
+     * @param to   file being recorded
      * @param rows strings to be written to file
      * @throws IOException if an I/O error is thrown by a write method
      */
-    public static void write(@NotNull final File to,
+    static void write(@NotNull final File to,
             @NotNull final Iterator<Row> rows) throws IOException {
         try (FileChannel fileChannel = FileChannel.open(to.toPath(),
                 StandardOpenOption.CREATE_NEW,
@@ -166,21 +155,14 @@ public class FileTable {
                 final Row row = rows.next();
 
                 //Key
-                fileChannel.write(Bytes.fromInt(row.getKey().remaining()));
-                fileChannel.write(row.getKey());
-                offset += Integer.BYTES + row.getKey().remaining();
+                offset += writeByteBuffer(fileChannel, row.getKey());
 
                 //Value
-                fileChannel.write(Bytes.fromInt(row.getValue().remaining()));
-                offset += Integer.BYTES;
                 if (row.isDead()) {
-                    fileChannel.write(Bytes.fromInt(MySuperDAO.DEAD));
-                    offset += Integer.BYTES;
+                    offset += fileChannel.write(Bytes.fromInt(MySuperDAO.DEAD));
                 } else {
-                    fileChannel.write(Bytes.fromInt(MySuperDAO.ALIVE));
-                    offset += Integer.BYTES;
-                    fileChannel.write(row.getValue());
-                    offset += row.getValue().remaining();
+                    offset += fileChannel.write(Bytes.fromInt(MySuperDAO.ALIVE));
+                    offset += writeByteBuffer(fileChannel, row.getValue()); // row.getValue().getData()
                 }
             }
             for (final Integer elemOffSets : offsets) {
@@ -188,5 +170,13 @@ public class FileTable {
             }
             fileChannel.write(Bytes.fromInt(offsets.size()));
         }
+    }
+
+    private static int writeByteBuffer(@NotNull final FileChannel fc, @NotNull final ByteBuffer buffer)
+            throws IOException {
+        int offset = 0;
+        offset += fc.write(Bytes.fromInt(buffer.remaining()));
+        offset += fc.write(buffer);
+        return offset;
     }
 }

@@ -6,12 +6,11 @@ import org.jetbrains.annotations.NotNull;
 
 import ru.mail.polis.Record;
 
-public final class Row implements Comparable<Row> {
+final class Row implements Comparable<Row> {
     private final int index;
     private final ByteBuffer key;
     private final ByteBuffer value;
     private final int status;
-
 
     private Row(@NotNull final int index,
             @NotNull final ByteBuffer key,
@@ -35,27 +34,27 @@ public final class Row implements Comparable<Row> {
      *
      * @return Record
      */
-    public Record getRecord() {
+    Record getRecord() {
         if (isDead()) {
-            return Record.of(MySuperDAO.TOMBSTONE, MySuperDAO.TOMBSTONE);
+            return Record.of(key, MySuperDAO.TOMBSTONE);
         } else {
             return Record.of(key, value);
         }
     }
 
-    public boolean isDead() {
+    boolean isDead() {
         return status == MySuperDAO.DEAD;
     }
 
-    public ByteBuffer getKey() {
+    ByteBuffer getKey() {
         return key.asReadOnlyBuffer();
     }
 
-    public ByteBuffer getValue() {
+    ByteBuffer getValue() {
         return value.asReadOnlyBuffer();
     }
 
-    public int getIndex() {
+    int getIndex() {
         return index;
     }
 

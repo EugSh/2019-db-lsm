@@ -54,6 +54,6 @@ public final class DAOFactory {
         if (!data.isDirectory()) {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
-        return  new MySuperDAO(MAX_HEAP / 3, data);
+        return new MySuperDAO(MAX_HEAP / 3, data);
     }
 }

@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import org.jetbrains.annotations.NotNull;
 
 public final class Bytes {
-    private Bytes(){
+    private Bytes() {
         // Not instantiatable
     }
 
