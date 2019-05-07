@@ -1,5 +1,6 @@
 package ru.mail.polis.shkalev;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,10 +12,10 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-class FileTable {
+class FileTable implements Closeable {
     private final int count;
     private final int fileIndex;
-    private final File file;
+    private final FileChannel fc;
 
     /**
      * Creates an object that is a file on disk, with the ability to create an iterator on this file.
@@ -23,16 +24,15 @@ class FileTable {
      * @throws IOException if an I/O error is thrown by a read method
      */
     FileTable(@NotNull final File file) throws IOException {
-        this.file = file;
         this.fileIndex = Integer.parseInt(file
                 .getName()
                 .substring(MySuperDAO.PREFIX.length(), file.getName().length() - MySuperDAO.SUFFIX.length()));
-        try (FileChannel fc = openRead(file)) {
-            final ByteBuffer countBB = ByteBuffer.allocate(Integer.BYTES);
-            fc.read(countBB, fc.size() - Integer.BYTES);
-            countBB.rewind();
-            this.count = countBB.getInt();
-        }
+        this.fc = openRead(file);
+        final ByteBuffer countBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(countBB, fc.size() - Integer.BYTES);
+        countBB.rewind();
+        this.count = countBB.getInt();
+
     }
 
     private static FileChannel openRead(@NotNull final File file) throws IOException {
@@ -87,22 +87,20 @@ class FileTable {
         return left;
     }
 
-    private int getOffset(@NotNull final int i, @NotNull final FileChannel fc) throws IOException {
+    private int getOffset(@NotNull final int i) throws IOException {
         final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
-        fc.read(offsetBB, fc.size() - Integer.BYTES - Integer.BYTES * count + Integer.BYTES * i);
+        fc.read(offsetBB, fc.size() - Integer.BYTES - (long) Integer.BYTES * count + (long) Integer.BYTES * i);
         offsetBB.rewind();
         return offsetBB.getInt();
     }
 
     private ByteBuffer getKeyAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
-        try (FileChannel fc = openRead(file)) {
-            final int offset = getOffset(i, fc);
-            return readByteBuffer(offset, fc);
-        }
+        final int offset = getOffset(i);
+        return readByteBuffer(offset);
     }
 
-    private ByteBuffer readByteBuffer(@NotNull final int offset, @NotNull final FileChannel fc) throws IOException {
+    private ByteBuffer readByteBuffer(@NotNull final int offset) throws IOException {
         final ByteBuffer bufferSize = ByteBuffer.allocate(Integer.BYTES);
         fc.read(bufferSize, offset);
         bufferSize.rewind();
@@ -114,27 +112,25 @@ class FileTable {
 
     private Row getRowAt(@NotNull final int i) throws IOException {
         assert 0 <= i && i < count;
-        try (FileChannel fc = openRead(file)) {
-            int offset = getOffset(i, fc);
+        int offset = getOffset(i);
 
-            //Key
-            final ByteBuffer keyBB = readByteBuffer(offset, fc);
-            offset += Integer.BYTES + keyBB.remaining();
+        //Key
+        final ByteBuffer keyBB = readByteBuffer(offset);
+        offset += Integer.BYTES + keyBB.remaining();
 
-            //Status
-            final ByteBuffer statusBB = ByteBuffer.allocate(Integer.BYTES);
-            fc.read(statusBB, offset);
-            statusBB.rewind();
-            final int status = statusBB.getInt();
-            offset += Integer.BYTES;
+        //Status
+        final ByteBuffer statusBB = ByteBuffer.allocate(Integer.BYTES);
+        fc.read(statusBB, offset);
+        statusBB.rewind();
+        final int status = statusBB.getInt();
+        offset += Integer.BYTES;
 
-            if (status == MySuperDAO.DEAD) {
-                return Row.of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
-            } else {
-                //Value
-                final ByteBuffer valueBB = readByteBuffer(offset, fc);
-                return Row.of(fileIndex, keyBB.slice(), valueBB.slice(), status);
-            }
+        if (status == MySuperDAO.DEAD) {
+            return Row.of(fileIndex, keyBB.slice(), MySuperDAO.TOMBSTONE, status);
+        } else {
+            //Value
+            final ByteBuffer valueBB = readByteBuffer(offset);
+            return Row.of(fileIndex, keyBB.slice(), valueBB.slice(), status);
         }
     }
 
@@ -174,11 +170,29 @@ class FileTable {
         }
     }
 
-    private static int writeByteBuffer(@NotNull final FileChannel fc, @NotNull final ByteBuffer buffer)
+    private static int writeByteBuffer(@NotNull final FileChannel fileChannel, @NotNull final ByteBuffer buffer)
             throws IOException {
         int offset = 0;
-        offset += fc.write(Bytes.fromInt(buffer.remaining()));
-        offset += fc.write(buffer);
+        offset += fileChannel.write(Bytes.fromInt(buffer.remaining()));
+        offset += fileChannel.write(buffer);
         return offset;
+    }
+
+    /**
+     * Closes this stream and releases any system resources associated
+     * with it. If the stream is already closed then invoking this
+     * method has no effect.
+     *
+     * <p> As noted in {@link AutoCloseable#close()}, cases where the
+     * close may fail require careful attention. It is strongly advised
+     * to relinquish the underlying resources and to internally
+     * <em>mark</em> the {@code Closeable} as closed, prior to throwing
+     * the {@code IOException}.
+     *
+     * @throws IOException if an I/O error occurs
+     */
+    @Override
+    public void close() throws IOException {
+        fc.close();
     }
 }
