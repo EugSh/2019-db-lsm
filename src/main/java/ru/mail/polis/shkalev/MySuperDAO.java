@@ -98,6 +98,7 @@ public class MySuperDAO implements DAO {
         checkHeap();
     }
 
+
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
         currentFileIndex++;
@@ -134,5 +135,16 @@ public class MySuperDAO implements DAO {
         for (final FileTable table : tables) {
             table.close();
         }
+    }
+
+    /**
+     * Perform compaction
+     */
+    @Override
+    public void compact() throws IOException {
+        final FileTable compactFileTable = CompactUtil.compactFileTables(rootDir, tables);
+        tables.clear();
+        tables.add(compactFileTable);
+        currentFileIndex = tables.size();
     }
 }

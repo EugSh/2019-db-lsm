@@ -32,7 +32,6 @@ class FileTable implements Closeable {
         fc.read(countBB, fc.size() - Integer.BYTES);
         countBB.rewind();
         this.count = countBB.getInt();
-
     }
 
     private static FileChannel openRead(@NotNull final File file) throws IOException {
@@ -50,6 +49,31 @@ class FileTable implements Closeable {
     Iterator<Row> iterator(@NotNull final ByteBuffer from) throws IOException {
         return new Iterator<Row>() {
             int index = getOffsetsIndex(from);
+
+            @Override
+            public boolean hasNext() {
+                return index < count;
+            }
+
+            @Override
+            public Row next() {
+                assert hasNext();
+                Row row = null;
+                try {
+                    row = getRowAt(index++);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return row;
+            }
+        };
+    }
+
+    @NotNull
+    Iterator<Row> iterator(){
+        return new Iterator<Row>() {
+            private static final int firstRow = 0;
+            int index = firstRow;
 
             @Override
             public boolean hasNext() {
@@ -177,7 +201,7 @@ class FileTable implements Closeable {
         offset += fileChannel.write(buffer);
         return offset;
     }
-    
+
     @Override
     public void close() throws IOException {
         fc.close();
