@@ -69,31 +69,6 @@ class FileTable implements Closeable {
         };
     }
 
-    @NotNull
-    Iterator<Row> iterator(){
-        return new Iterator<Row>() {
-            private static final int firstRow = 0;
-            int index = firstRow;
-
-            @Override
-            public boolean hasNext() {
-                return index < count;
-            }
-
-            @Override
-            public Row next() {
-                assert hasNext();
-                Row row = null;
-                try {
-                    row = getRowAt(index++);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return row;
-            }
-        };
-    }
-
     private int getOffsetsIndex(@NotNull final ByteBuffer from) throws IOException {
         int left = 0;
         int right = count - 1;
