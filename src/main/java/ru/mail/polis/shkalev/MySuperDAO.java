@@ -138,7 +138,7 @@ public class MySuperDAO implements DAO {
     }
 
     /**
-     * Perform compaction
+     * Perform compaction.
      */
     @Override
     public void compact() throws IOException {

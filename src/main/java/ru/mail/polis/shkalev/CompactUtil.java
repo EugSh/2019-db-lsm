@@ -36,7 +36,8 @@ public final class CompactUtil {
      * @return file table which consist actual data
      * @throws IOException if an I/O error is thrown by FileTable.iterator
      */
-    public static FileTable compactFileTables(@NotNull final File rootDir,@NotNull final Collection<FileTable> fileTables) throws IOException {
+    public static FileTable compactFileTables(@NotNull final File rootDir,
+            @NotNull final Collection<FileTable> fileTables) throws IOException {
         final List<MyTableIterator> tableIterators = new LinkedList<>();
         for (final FileTable fileT : fileTables) {
             tableIterators.add(MyTableIterator.of(fileT.iterator(ByteBuffer.allocate(0))));
@@ -53,7 +54,8 @@ public final class CompactUtil {
         return new FileTable(compactFileDb);
     }
 
-    private static File compact(@NotNull final File rootDir,@NotNull final Iterator<Row> rows) throws IOException {
+    private static File compact(@NotNull final File rootDir,
+            @NotNull final Iterator<Row> rows) throws IOException {
         final String fileTableName = MySuperDAO.PREFIX + START_FILE_INDEX + TMP;
         final File table = new File(rootDir, fileTableName);
         FileTable.write(table, rows);
@@ -66,7 +68,7 @@ public final class CompactUtil {
         }
     }
 
-    private static void clearDirectory(File dir) throws IOException {
+    private static void clearDirectory(@NotNull final File dir) throws IOException {
         final EnumSet<FileVisitOption> options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
         final int maxDeep = 1;
         Files.walkFileTree(dir.toPath(), options, maxDeep, new SimpleFileVisitor<>() {
