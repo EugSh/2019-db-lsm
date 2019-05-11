@@ -31,27 +31,32 @@ public final class CompactUtil {
 
     /**
      * Compact files.
-     * @param rootDir base directory
+     *
+     * @param rootDir    base directory
      * @param fileTables list file tables
      * @return file table which consist actual data
      * @throws IOException if an I/O error is thrown by FileTable.iterator
      */
-    public static FileTable compactFileTables(@NotNull final File rootDir,
+    public static FileTable compactFile(@NotNull final File rootDir,
             @NotNull final Collection<FileTable> fileTables) throws IOException {
         final List<MyTableIterator> tableIterators = new LinkedList<>();
         for (final FileTable fileT : fileTables) {
             tableIterators.add(MyTableIterator.of(fileT.iterator(ByteBuffer.allocate(0))));
         }
-        final Iterator<Row> mergingTableIterator = Iterators.mergeSorted(tableIterators, Row::compareTo);
-        final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
-        final Iterator<Row> filteredRow = Iterators.filter(collapsedIterator, row -> !row.isDead());
+        final Iterator<Row> filteredRow = MyTableIterator.getActualRowIterator(tableIterators);
         final File compactFileTmp = compact(rootDir, filteredRow);
-        closeTables(fileTables);
-        clearDirectory(rootDir);
+        for (FileTable fileTable :
+                fileTables) {
+            fileTable.close();
+            fileTable.deleteFile();
+        }
+        fileTables.clear();
         final String fileDbName = MySuperDAO.PREFIX + START_FILE_INDEX + MySuperDAO.SUFFIX;
         final File compactFileDb = new File(rootDir, fileDbName);
         Files.move(compactFileTmp.toPath(), compactFileDb.toPath(), StandardCopyOption.ATOMIC_MOVE);
-        return new FileTable(compactFileDb);
+        final FileTable compactedFileTable = new FileTable(compactFileDb);
+        fileTables.add(compactedFileTable);
+        return compactedFileTable;
     }
 
     private static File compact(@NotNull final File rootDir,
@@ -60,26 +65,5 @@ public final class CompactUtil {
         final File table = new File(rootDir, fileTableName);
         FileTable.write(table, rows);
         return table;
-    }
-
-    private static void closeTables(@NotNull final Collection<FileTable> tables) throws IOException {
-        for (final FileTable table : tables) {
-            table.close();
-        }
-    }
-
-    private static void clearDirectory(@NotNull final File dir) throws IOException {
-        final EnumSet<FileVisitOption> options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
-        final int maxDeep = 1;
-        Files.walkFileTree(dir.toPath(), options, maxDeep, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
-                if (file.getFileName().toString().startsWith(MySuperDAO.PREFIX)
-                        && file.getFileName().toString().endsWith(MySuperDAO.SUFFIX)) {
-                    Files.delete(file);
-                }
-                return FileVisitResult.CONTINUE;
-            }
-        });
     }
 }

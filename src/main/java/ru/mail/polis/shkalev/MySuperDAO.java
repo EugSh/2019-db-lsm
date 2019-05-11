@@ -82,9 +82,7 @@ public class MySuperDAO implements DAO {
         if (memTableIterator.hasNext()) {
             tableIterators.add(MyTableIterator.of(memTableIterator));
         }
-        final Iterator<Row> mergingTableIterator = Iterators.mergeSorted(tableIterators, Row::compareTo);
-        final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
-        final Iterator<Row> result = Iterators.filter(collapsedIterator, row -> !row.isDead());
+        final Iterator<Row> result = MyTableIterator.getActualRowIterator(tableIterators);
         return Iterators.transform(result, row -> row.getRecord());
     }
 
@@ -97,7 +95,6 @@ public class MySuperDAO implements DAO {
                 + Integer.BYTES;
         checkHeap();
     }
-
 
     private void dump() throws IOException {
         final String fileTableName = PREFIX + currentFileIndex + SUFFIX;
@@ -131,7 +128,9 @@ public class MySuperDAO implements DAO {
 
     @Override
     public void close() throws IOException {
-        dump();
+        if (currentHeap != 0) {
+            dump();
+        }
         for (final FileTable table : tables) {
             table.close();
         }
@@ -142,9 +141,7 @@ public class MySuperDAO implements DAO {
      */
     @Override
     public void compact() throws IOException {
-        final FileTable compactFileTable = CompactUtil.compactFileTables(rootDir, tables);
-        tables.clear();
-        tables.add(compactFileTable);
+        final FileTable compactFileTable = CompactUtil.compactFile(rootDir, tables);
         currentFileIndex = tables.size();
     }
 }
