@@ -22,7 +22,6 @@ import org.jetbrains.annotations.NotNull;
 import com.google.common.collect.Iterators;
 
 import ru.mail.polis.DAO;
-import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
 public class MySuperDAO implements DAO {
@@ -141,7 +140,7 @@ public class MySuperDAO implements DAO {
      */
     @Override
     public void compact() throws IOException {
-        final FileTable compactFileTable = CompactUtil.compactFile(rootDir, tables);
+        CompactUtil.compactFile(rootDir, tables);
         currentFileIndex = tables.size();
     }
 }
