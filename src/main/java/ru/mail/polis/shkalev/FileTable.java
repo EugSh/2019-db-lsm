@@ -137,7 +137,8 @@ class FileTable implements Closeable {
     }
 
     /**
-     * Writes data to file. First writes all row: key length, key, status (DEAD, ALIVE), value length, value. Then writes offsets array, and then writes amount of row.
+     * Writes data to file. First writes all row: key length, key, status (DEAD, ALIVE),
+     * value length, value. Then writes offsets array, and then writes amount of row.
      *
      * @param to   file being recorded
      * @param rows strings to be written to file
