@@ -22,7 +22,7 @@ public final class CompactUtil {
 
     /**
      * Compact files. Since deletions and changes accumulate, we have to collapse
-     * all these changes, on the one hand, reducing the search speed, on the
+     * all these changes, on the one hand, reducing the search time, on the
      * other - reducing the required storage space. Single file will be created
      * in which the most relevant data will be stored and the rest will be deleted.
      *
