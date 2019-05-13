@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -22,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import com.google.common.collect.Iterators;
 
 import ru.mail.polis.DAO;
+import ru.mail.polis.Iters;
 import ru.mail.polis.Record;
 
 public class MySuperDAO implements DAO {
@@ -72,16 +74,15 @@ public class MySuperDAO implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
-        final List<MyTableIterator> tableIterators = new LinkedList<>();
+        final List<Iterator<Row>> tableIterators = new LinkedList<>();
         for (final FileTable fileT : tables) {
-            tableIterators.add(MyTableIterator.of(fileT.iterator(from)));
+            tableIterators.add(fileT.iterator(from));
         }
 
         final Iterator<Row> memTableIterator = memTable.tailMap(from).values().iterator();
-        if (memTableIterator.hasNext()) {
-            tableIterators.add(MyTableIterator.of(memTableIterator));
-        }
-        final Iterator<Row> result = MyTableIterator.getActualRowIterator(tableIterators);
+        tableIterators.add(memTableIterator);
+
+        final Iterator<Row> result = getActualRowIterator(tableIterators);
         return Iterators.transform(result, row -> row.getRecord());
     }
 
@@ -142,5 +143,17 @@ public class MySuperDAO implements DAO {
     public void compact() throws IOException {
         CompactUtil.compactFile(rootDir, tables);
         currentFileIndex = tables.size();
+    }
+
+    /**
+     * Get merge sorted, collapse equals, without dead row iterator.
+     *
+     * @param tableIterators collection MyTableIterator
+     * @return Row Iterator
+     */
+    public static Iterator<Row> getActualRowIterator(@NotNull final Collection<Iterator<Row>> tableIterators) {
+        final Iterator<Row> mergingTableIterator = Iterators.mergeSorted(tableIterators, Row::compareTo);
+        final Iterator<Row> collapsedIterator = Iters.collapseEquals(mergingTableIterator, Row::getKey);
+        return Iterators.filter(collapsedIterator, row -> !row.isDead());
     }
 }

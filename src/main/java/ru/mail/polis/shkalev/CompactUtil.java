@@ -15,24 +15,28 @@ import org.jetbrains.annotations.NotNull;
 public final class CompactUtil {
     private static final String TMP = ".tmp";
     private static final int START_FILE_INDEX = 0;
+    private static final ByteBuffer LEAST_KEY = ByteBuffer.allocate(0);
 
     private CompactUtil() {
     }
 
     /**
-     * Compact files.
+     * Compact files. Since deletions and changes accumulate, we have to collapse
+     * all these changes, on the one hand, reducing the search speed, on the
+     * other - reducing the required storage space. Single file will be created
+     * in which the most relevant data will be stored and the rest will be deleted.
      *
      * @param rootDir    base directory
-     * @param fileTables list file tables
+     * @param fileTables list file tables that will collapse
      * @throws IOException if an I/O error is thrown by FileTable.iterator
      */
     public static void compactFile(@NotNull final File rootDir,
             @NotNull final Collection<FileTable> fileTables) throws IOException {
-        final List<MyTableIterator> tableIterators = new LinkedList<>();
+        final List<Iterator<Row>> tableIterators = new LinkedList<>();
         for (final FileTable fileT : fileTables) {
-            tableIterators.add(MyTableIterator.of(fileT.iterator(ByteBuffer.allocate(0))));
+            tableIterators.add(fileT.iterator(LEAST_KEY));
         }
-        final Iterator<Row> filteredRow = MyTableIterator.getActualRowIterator(tableIterators);
+        final Iterator<Row> filteredRow = MySuperDAO.getActualRowIterator(tableIterators);
         final File compactFileTmp = compact(rootDir, filteredRow);
         for (final FileTable fileTable :
                 fileTables) {
